@@ -1,0 +1,84 @@
+@startuml
+title 03 用例图\n四角色的功能边界
+left to right direction
+skinparam defaultFontName Microsoft YaHei
+skinparam defaultFontSize 15
+skinparam backgroundColor #F5F6F8
+skinparam shadowing false
+skinparam dpi 150
+skinparam ArrowColor #687A88
+skinparam usecase {
+  BackgroundColor #FFFFFF
+  BorderColor #526476
+}
+actor "顾客" as Customer
+actor "商家" as Merchant
+actor "配送员" as Courier
+actor "管理员" as Admin
+
+rectangle "饭点 · 单机演示系统" {
+  usecase "选择预置演示账号\nM01" as Login
+  usecase "浏览/条件查询菜品\nM02、M03" as Browse
+  usecase "维护购物车/选预设地址\nM03" as Cart
+  usecase "确认价格并下单/模拟支付\nM04" as Checkout
+  usecase "查询权限范围内订单\nM08" as Orders
+  usecase "取消/申请取消订单\nM07" as Cancel
+  usecase "确认收货\nM04、M06" as Confirm
+  usecase "维护本店资料/菜品/库存\nM02" as Catalog
+  usecase "接拒单/标记出餐\nM05" as Fulfil
+  usecase "人工派单\nM05" as Assign
+  usecase "同意或拒绝制作中取消\nM07" as Decide
+  usecase "接拒配送任务/取餐/送达\nM06" as Deliver
+  usecase "上报配送异常/拒收\nM06" as Exception
+  usecase "异常延迟/改派/全额退款\nM06、M07" as Resolve
+  usecase "启停演示账号/强制停业\nM01、M02" as Manage
+  usecase "查询基础经营统计\nM08" as Stats
+  usecase "查询权限范围内只读日志\nM08" as Logs
+  usecase "执行手动超时检查\nM09" as Timeout
+}
+
+Customer --> Login
+Merchant --> Login
+Courier --> Login
+Admin --> Login
+Customer --> Browse
+Customer --> Cart
+Customer --> Checkout
+Customer --> Orders
+Customer --> Cancel
+Customer --> Confirm
+Customer --> Exception
+Merchant --> Catalog
+Merchant --> Fulfil
+Merchant --> Assign
+Merchant --> Decide
+Merchant --> Orders
+Merchant --> Stats
+Merchant --> Logs
+Courier --> Deliver
+Courier --> Exception
+Courier --> Logs
+Admin --> Orders
+Admin --> Resolve
+Admin --> Manage
+Admin --> Assign
+Admin --> Stats
+Admin --> Logs
+Admin --> Timeout
+
+note right of Orders
+  顾客仅本人订单；商家仅本店；管理员全平台。
+  配送员的订单信息通过本人配送任务查看。
+end note
+note right of Resolve
+  仅未取餐且异常未解决时允许改派。
+  已取餐不允许改派；可记录延迟或确认退款。
+  已完成、已取消、已退款均为终态。
+end note
+legend bottom
+  用例覆盖 M01—M09；持久化与权限校验贯穿各业务操作。
+  日志：商家限本店，配送员限本人配送动作；顾客不提供日志入口。
+  无真实短信、支付、地图与智能调度；无后台超时任务。
+endlegend
+footer lab2-prototype-v1 · 行为图
+@enduml

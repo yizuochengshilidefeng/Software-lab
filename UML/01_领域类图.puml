@@ -1,0 +1,179 @@
+@startuml
+title 01 领域类图\n饭点 · 校园外卖点餐与配送系统
+skinparam defaultFontName Microsoft YaHei
+skinparam defaultFontSize 15
+skinparam backgroundColor #F5F6F8
+skinparam shadowing false
+skinparam dpi 150
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam class {
+  BackgroundColor #FFFFFF
+  BorderColor #526476
+  HeaderBackgroundColor #FBE9E1
+  ArrowColor #687A88
+}
+hide circle
+
+class "用户\nusers" as User {
+  +id : TEXT <<PK>>
+  +display_name : TEXT
+  +role : 顾客|商家|配送员|管理员
+  +enabled : INTEGER
+}
+class "店铺\nstores" as Store {
+  +id : TEXT <<PK>>
+  +owner_user_id : TEXT <<FK>>
+  +name : TEXT
+  +address : TEXT
+  +status : 营业中|休息中|强制停业
+}
+class "菜品\ndishes" as Dish {
+  +id : TEXT <<PK>>
+  +store_id : TEXT <<FK>>
+  +name : TEXT
+  +category : TEXT
+  +price_cents : INTEGER
+  +stock : INTEGER
+  +reserved : INTEGER
+  +listed : INTEGER
+  +deleted : INTEGER
+  --
+  +available() : int
+}
+class "预设校内地址\naddresses" as Address {
+  +id : TEXT <<PK>>
+  +customer_id : TEXT <<FK>>
+  +label : TEXT
+  +recipient_name : TEXT
+  +phone : TEXT
+  +distance_m : INTEGER
+  +enabled : INTEGER
+}
+class "购物车项\ncart_items" as CartItem {
+  +id : TEXT <<PK>>
+  +customer_id : TEXT <<FK>>
+  +dish_id : TEXT <<FK>>
+  +quantity : INTEGER
+}
+class "订单\norders" as Order {
+  +id : TEXT <<PK>>
+  +customer_id : TEXT <<FK>>
+  +store_id : TEXT <<FK>>
+  +address_id : TEXT <<FK>>
+  +idempotency_token : TEXT
+  +status : 订单九态
+  +address_snapshot : TEXT
+  +recipient_snapshot : TEXT
+  +phone_snapshot : TEXT
+  +items_cents : INTEGER
+  +packing_cents : INTEGER
+  +delivery_fee_cents : INTEGER
+  +total_cents : INTEGER
+  +paid_cents : INTEGER
+  +ready_at : TEXT?
+  +cancel_requested : INTEGER
+  +exception_reason : TEXT
+  +exception_status : 无异常|待处理|已处理
+  +exception_resolution : TEXT
+  +version : INTEGER
+  +created_at : TEXT
+  +paid_at : TEXT?
+  +delivered_at : TEXT?
+  --
+  +can_transition(next_state) : bool
+  +request_cancel() : void
+}
+class "订单明细\norder_items" as OrderItem {
+  +id : TEXT <<PK>>
+  +order_id : TEXT <<FK>>
+  +store_id : TEXT <<复合FK>>
+  +dish_id : TEXT <<FK>>
+  +dish_name_snapshot : TEXT
+  +unit_price_cents : INTEGER
+  +quantity : INTEGER
+}
+class "配送单\ndeliveries" as Delivery {
+  +id : TEXT <<PK>>
+  +order_id : TEXT <<FK, UNIQUE>>
+  +courier_id : TEXT? <<FK>>
+  +status : 配送五态
+  +assigned_at : TEXT?
+  +accepted_at : TEXT?
+  +picked_up_at : TEXT?
+  +delivered_at : TEXT?
+  --
+  +can_pickup() : bool
+  +deliver() : void
+}
+class "退款单\nrefunds" as Refund {
+  +id : TEXT <<PK>>
+  +order_id : TEXT <<FK, UNIQUE>>
+  +amount_cents : INTEGER
+  +reason : TEXT
+  +status : 退款中|已退款
+  +inventory_restored : INTEGER
+  +created_at : TEXT
+  +refunded_at : TEXT?
+  --
+  +is_completed() : bool
+}
+class "操作日志\naudit_logs" as AuditLog {
+  +id : INTEGER <<PK>>
+  +actor_user_id : TEXT <<FK>>
+  +actor_role : TEXT
+  +store_id : TEXT? <<FK>>
+  +order_id : TEXT? <<FK>>
+  +action : TEXT
+  +before_state : TEXT
+  +after_state : TEXT
+  +object_type : TEXT
+  +object_id : TEXT
+  +result : TEXT
+  +created_at : TEXT
+}
+
+User "1" -- "0..1" Store : 商家经营
+Store "1" -- "0..*" Dish : 管理
+User "1" -- "0..*" CartItem : 顾客持有
+Dish "1" -- "0..*" CartItem : 当前菜品
+User "1" -- "0..*" Order : 顾客提交
+User "1" -- "0..*" Address : 预置只读地址
+Store "1" -- "0..*" Order : 一单一店
+Address "1" -- "0..*" Order : 下单时复制快照
+Order "1" *-- "1..*" OrderItem : 包含
+Dish "1" -- "0..*" OrderItem : 保留引用及价格快照
+Order "1" -- "0..1" Delivery : 单条记录，改派复用
+User "0..1" -- "0..*" Delivery : 当前配送员
+Order "1" -- "0..1" Refund : 最多一笔全额退款
+User "1" -- "0..*" AuditLog : 操作人
+Order "0..1" -- "0..*" AuditLog : 关联订单
+Store "0..1" -- "0..*" AuditLog : 所属店铺
+
+note right of Dish
+  可售量 = stock - reserved
+  约束：stock ≥ reserved ≥ 0
+  同店未删除菜品名称唯一
+end note
+note right of Order
+  所有金额均为整数分。
+  同一顾客 + idempotency_token 唯一。
+  明细的 (order_id, store_id) 和
+  (dish_id, store_id) 复合外键保证一单一店。
+  快照包括地址、联系方式、菜品名称、
+  单价、数量、打包费与配送费。
+  制作中 + ready_at 非空 + 无配送员
+  在界面显示“待分配”，不增加订单状态。
+end note
+note bottom of CartItem
+  customer_id + dish_id 唯一；quantity > 0。
+  服务校验角色、账号启用状态与数据归属。
+end note
+legend bottom
+  十张表对应十类持久化实体；字段展示关键设计，完整定义见 SQLite 建表文件。
+  用户为预置演示账号；校内地址按顾客预置，只读使用。
+  类方法表示领域责任；角色校验与事务提交由业务服务协调。
+  业务写入、关键状态、库存、退款和日志由同一个 SQLite 事务协调。
+endlegend
+footer lab2-prototype-v1 · 单机教学原型 · 领域实体
+@enduml

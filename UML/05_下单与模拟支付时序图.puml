@@ -1,0 +1,79 @@
+@startuml
+title 05 下单与模拟支付时序图\n价格快照、预占库存与幂等请求
+skinparam defaultFontName Microsoft YaHei
+skinparam defaultFontSize 15
+skinparam backgroundColor #F5F6F8
+skinparam shadowing false
+skinparam dpi 150
+skinparam sequence {
+  ArrowColor #526476
+  LifeLineBorderColor #A1ACB6
+  ParticipantBackgroundColor #FFFFFF
+  ParticipantBorderColor #526476
+  GroupBackgroundColor #E8F2EF
+}
+autonumber
+actor 顾客 as Customer
+boundary "购物车与结算 UI" as UI
+control SessionContext as Session
+control OrderService as Orders
+entity Database as DB
+database SQLite as SQL
+
+Customer -> UI : 选择预设校内地址，确认当前价格
+UI -> Orders : create_order(address_id, idempotency_token, confirmed_prices)
+Orders -> Session : 校验顾客、账号启用及本人购物车
+Orders -> DB : BEGIN IMMEDIATE
+DB -> SQL : 开启写事务（连接已启用外键）
+Orders -> DB : 查 (customer_id, idempotency_token)
+DB -> SQL : 查询已存在订单
+alt 同一令牌已存在
+  DB --> Orders : 返回原订单
+  Orders -> DB : COMMIT（无重复写入）
+  Orders --> UI : 原订单，不重复预占库存
+else 首次提交
+  Orders -> DB : 读取购物车、店铺、菜品及预设地址
+  DB -> SQL : 查询最新价格、stock、reserved、地址状态
+  DB --> Orders : 当前业务数据
+  Orders -> Orders : 验证一单一店、营业/非强制停业\n可售状态、数量、stock-reserved\n地址启用、距离≤3km及价格确认
+  alt 校验失败或价格已变化
+    Orders -> DB : ROLLBACK
+    Orders --> UI : 显示具体原因；价格变化时重新确认
+  else 校验通过
+    Orders -> DB : 插入 orders(待支付)、order_items\n复制价格及地址快照；reserved += quantity\n移除已结算购物车项；追加日志
+    DB -> SQL : 同事务保存全部业务写入
+    Orders -> DB : COMMIT
+    Orders --> UI : 返回待支付订单与快照金额
+  end
+end
+
+== 独立的模拟支付命令 ==
+Customer -> UI : 点击模拟支付（可演示成功或失败）
+UI -> Orders : simulate_payment(order_id, result)
+Orders -> Session : 校验账号、顾客角色与订单归属
+Orders -> DB : BEGIN IMMEDIATE；读取订单及明细
+DB -> SQL : 读取持久化快照与当前状态
+alt 已支付且为重复请求
+  Orders -> DB : COMMIT（无新增写入）
+  Orders --> UI : 返回现有状态，不重复扣库存
+else 订单不是待支付
+  Orders -> DB : ROLLBACK
+  Orders --> UI : 拒绝非法状态操作
+else 模拟支付失败
+  Orders -> DB : COMMIT（无业务变更）
+  Orders --> UI : 保持待支付，可重试
+else 待支付且模拟支付成功
+  Orders -> DB : stock -= quantity；reserved -= quantity\n订单→待接单；paid_cents=total_cents\n记录 paid_at 与日志
+  DB -> SQL : 同事务更新库存、订单和日志
+  Orders -> DB : COMMIT
+  Orders --> UI : 支付成功，展示待接单
+end
+
+note over Orders, SQL
+  全部金额为整数分；订单金额只从已保存快照计算。
+  SQLite 约束保障请求令牌、购物车项和有效菜品名唯一。
+  任意数据库写入/日志失败均回滚整个事务。
+  管理员手动检查可取消超过 15 分钟的待支付订单，释放 reserved。
+end note
+footer lab2-prototype-v1 · 交互图 · 无真实支付接口
+@enduml

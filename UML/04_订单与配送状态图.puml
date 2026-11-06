@@ -1,0 +1,85 @@
+@startuml
+title 04 订单与配送状态图\n九态订单与独立配送五态
+skinparam defaultFontName Microsoft YaHei
+skinparam defaultFontSize 15
+skinparam backgroundColor #F5F6F8
+skinparam shadowing false
+skinparam dpi 150
+skinparam ArrowColor #687A88
+skinparam state {
+  BackgroundColor #FFFFFF
+  BorderColor #526476
+}
+
+state "订单 Order：恰好九种业务状态" as OrderMachine {
+  state "待支付" as O_Unpaid
+  state "待接单" as O_Pending
+  state "制作中" as O_Preparing
+  state "配送中" as O_Delivering
+  state "已送达" as O_Delivered
+  state "已完成" as O_Completed #E8F2EF
+  state "已取消" as O_Cancelled #EDF0F4
+  state "退款中" as O_Refunding
+  state "已退款" as O_Refunded #EDF0F4
+  [*] --> O_Unpaid : 创建订单并预占库存
+  O_Unpaid --> O_Pending : 模拟支付成功\n扣 stock 并释放 reserved
+  O_Unpaid --> O_Unpaid : 模拟支付失败
+  O_Unpaid --> O_Cancelled : 顾客取消 / 手动检查超过 15 分钟\n只释放 reserved
+  O_Pending --> O_Preparing : 本店商家接单
+  O_Pending --> O_Refunding : 顾客取消 / 商家拒单\n管理员逐单退款 / 手动检查超过 5 分钟
+  O_Preparing --> O_Preparing : 出餐、人工派单\n取消申请或商家拒绝申请
+  O_Preparing --> O_Delivering : 指定配送员接受\n[ready_at 非空]
+  O_Preparing --> O_Refunding : 商家同意取消申请
+  O_Delivering --> O_Delivering : 上报异常 / 管理员记录延迟\n[未取餐且异常未解决] 改派
+  O_Delivering --> O_Delivered : 配送员送达\n[配送单已取餐]
+  O_Delivering --> O_Refunding : 管理员确认异常全额退款
+  O_Delivered --> O_Delivered : 上报拒收 / 管理员记录延迟
+  O_Delivered --> O_Completed : 顾客确认 / 手动检查超过 24 小时
+  O_Delivered --> O_Refunding : 管理员确认拒收等异常退款
+  O_Refunding --> O_Refunded : 模拟退款即时成功\n补回 stock 一次，关闭配送
+  O_Completed --> [*]
+  O_Cancelled --> [*]
+  O_Refunded --> [*]
+}
+
+state "配送 Delivery：同一订单最多一条记录" as DeliveryMachine {
+  state "待接受" as D_Assigned
+  state "已接受" as D_Accepted
+  state "已取餐" as D_Picked
+  state "已送达" as D_Delivered
+  state "已关闭" as D_Closed
+  [*] --> D_Assigned : 商家或管理员人工派单
+  D_Assigned --> D_Accepted : 指定配送员接受\n若订单仍制作中则进入配送中\n改派后保持配送中
+  D_Assigned --> D_Closed : 当前配送员拒绝任务\n清空配送员，订单状态不变
+  D_Accepted --> D_Picked : 当前配送员取餐
+  D_Picked --> D_Delivered : 当前配送员送达\n同时使订单进入已送达
+  D_Accepted --> D_Assigned : 管理员改派\n[未取餐且有未解决异常]\n订单保持配送中
+  D_Assigned --> D_Closed : 订单依法完成全额退款
+  D_Accepted --> D_Closed : 管理员确认异常退款
+  D_Picked --> D_Closed : 管理员确认异常退款
+  D_Delivered --> D_Closed : 管理员确认异常退款
+  D_Closed --> D_Assigned : 复用记录再次人工派单\n[制作中且已出餐] 商家/管理员\n[配送中、未取餐、异常待处理] 仅管理员
+}
+
+note right of O_Preparing
+  “待分配”是界面提示，不是第十种订单状态。
+  ready_at 非空，且没有有效已分配配送员时显示。
+  制作中取消仅设置 cancel_requested；
+  商家拒绝申请不会改变订单状态。
+end note
+note right of D_Accepted
+  配送中异常改派后，新的配送员接受任务
+  不再改变订单状态，订单始终保持配送中。
+  新配送员拒绝后，订单仍配送中且异常待处理，
+  仅管理员可再次派单，仍须未取餐。
+  已取餐、已送达及终态订单不允许改派。
+end note
+legend bottom
+  订单与配送为两台协作状态机；同步修改与库存、退款、日志在同一 SQLite 事务内提交。
+  已完成、已取消、已退款无后续业务转换；除图中允许的转换，其余全部拒绝。
+  保留“退款中”建模；正常模拟退款在同一事务内立即完成到“已退款”，一次提交。
+  不设失败重试或中间态恢复任务。
+  超时转换仅由管理员点击“手动超时检查”触发，没有后台定时器。
+endlegend
+footer lab2-prototype-v1 · 行为图
+@enduml
