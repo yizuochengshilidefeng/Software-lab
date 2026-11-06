@@ -1,0 +1,49 @@
+/AGENTS.md
+
+# Reports and lab working materials stay local.
+**/实验报告.*
+**/report.pdf
+**/report.tex
+**/report.docx
+**/工作中间产物/
+**/build/
+**/dist/
+**/模板/
+*.zip
+*.bundle
+
+# Runtime files, credentials, and build outputs.
+**/__pycache__/
+*.py[cod]
+**/.venv/
+**/venv/
+**/node_modules/
+**/.env
+**/.env.*
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+*.aux
+*.log
+*.toc
+*.out
+*.synctex.gz
+
+# Lab 1: requirements and the original interview record.
+/实验一_学号_姓名/*
+!/实验一_学号_姓名/实验1_241240004_陈仝/
+/实验一_学号_姓名/实验1_241240004_陈仝/*
+!/实验一_学号_姓名/实验1_241240004_陈仝/requirements.md
+!/实验一_学号_姓名/实验1_241240004_陈仝/chat.txt
+
+# Lab 2: only UI PNG and UML PNG/PlantUML sources.
+/实验二/*
+!/实验二/实验2_241240004_陈仝/
+/实验二/实验2_241240004_陈仝/*
+!/实验二/实验2_241240004_陈仝/UI界面/
+!/实验二/实验2_241240004_陈仝/UML/
+/实验二/实验2_241240004_陈仝/UI界面/*
+!/实验二/实验2_241240004_陈仝/UI界面/*.png
+/实验二/实验2_241240004_陈仝/UML/*
+!/实验二/实验2_241240004_陈仝/UML/*.png
+!/实验二/实验2_241240004_陈仝/UML/*.puml
