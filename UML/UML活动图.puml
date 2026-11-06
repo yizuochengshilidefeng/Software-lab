@@ -3,6 +3,7 @@ title 外卖点餐与配送系统：活动图
 skinparam defaultFontName Microsoft YaHei
 skinparam shadowing false
 start
+:按菜品分类和价格筛选店铺;
 :顾客选店选餐，加入购物车;
 :选择预设地址，确认价格与数量;
 if (地址、营业状态和库存有效？) then (是)

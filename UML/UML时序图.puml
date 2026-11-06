@@ -5,7 +5,8 @@ skinparam shadowing false
 autonumber
 actor 顾客
 actor 商家
-participant "桌面界面" as UI
+participant "顾客界面\n手机样式" as UI
+participant "商家管理界面" as MerchantUI
 participant "订单服务" as Orders
 database SQLite
 
@@ -27,12 +28,12 @@ opt 已创建待支付订单
     Orders -> SQLite : 同事务扣减库存、释放预占\n订单变为待接单，追加日志
     SQLite --> Orders : 提交成功
     Orders --> UI : 显示待接单
-    商家 -> UI : 对本店待接单订单点击接单
-    UI -> Orders : acceptOrder(订单号)
+    商家 -> MerchantUI : 对本店待接单订单点击接单
+    MerchantUI -> Orders : acceptOrder(订单号)
     Orders -> Orders : 校验商家归属及当前状态
     Orders -> SQLite : 同事务将订单改为制作中并追加日志
     SQLite --> Orders : 提交成功
-    Orders --> UI : 更新订单状态
+    Orders --> MerchantUI : 更新订单状态
   else 支付失败
     Orders --> UI : 保持待支付，可重试
   end

@@ -15,6 +15,7 @@ class "店铺" as Store {
 }
 class "菜品" as Dish {
   -name : string
+  -category : string
   -price_cents : int
   -stock : int
   -reserved : int
