@@ -1,0 +1,40 @@
+@startuml
+title 外卖点餐与配送系统：下单接单时序图
+skinparam defaultFontName Microsoft YaHei
+skinparam shadowing false
+autonumber
+actor 顾客
+actor 商家
+participant "桌面界面" as UI
+participant "订单服务" as Orders
+database SQLite
+
+顾客 -> UI : 提交单店购物车与预设地址
+UI -> Orders : createOrder(地址, 请求令牌)
+Orders -> Orders : 校验角色、归属、价格及库存
+alt 校验通过
+  Orders -> SQLite : 事务保存订单快照、预占库存、日志
+  SQLite --> Orders : 待支付订单
+  Orders --> UI : 显示订单与应付金额
+else 校验失败
+  Orders --> UI : 显示错误，不生成订单
+end
+
+opt 已创建待支付订单
+  顾客 -> UI : 模拟支付
+  UI -> Orders : pay(订单号, 支付结果)
+  alt 支付成功且订单待支付
+    Orders -> SQLite : 同事务扣减库存、释放预占\n订单变为待接单，追加日志
+    SQLite --> Orders : 提交成功
+    Orders --> UI : 显示待接单
+    商家 -> UI : 对本店待接单订单点击接单
+    UI -> Orders : acceptOrder(订单号)
+    Orders -> Orders : 校验商家归属及当前状态
+    Orders -> SQLite : 同事务将订单改为制作中并追加日志
+    SQLite --> Orders : 提交成功
+    Orders --> UI : 更新订单状态
+  else 支付失败
+    Orders --> UI : 保持待支付，可重试
+  end
+end
+@enduml

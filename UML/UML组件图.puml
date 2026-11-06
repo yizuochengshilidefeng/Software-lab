@@ -1,0 +1,31 @@
+@startuml
+title 外卖点餐与配送系统：组件图
+skinparam defaultFontName Microsoft YaHei
+skinparam shadowing false
+top to bottom direction
+
+component "演示账号与四角色界面\nTkinter/ttk" as UI
+package "业务模块" {
+  component "商品与购物车\n店铺、菜品、库存、预设地址" as Catalog
+  component "订单管理\n下单、模拟支付、接单、退款" as Orders
+  component "配送管理\n人工派单、取餐送达、异常" as Delivery
+  component "查询与统计\n订单筛选、营业额、只读日志" as Query
+}
+component "数据访问\n事务与参数化查询" as Data
+database "SQLite 本地文件" as DB
+
+UI --> Catalog
+UI --> Orders
+UI --> Delivery
+UI --> Query
+Delivery ..> Orders : 更新订单状态
+Catalog --> Data
+Orders --> Data
+Delivery --> Data
+Query --> Data
+Data --> DB
+note bottom of UI
+  服务检查角色、账号状态与数据归属。
+  超时处理由管理员手动检查触发。
+end note
+@enduml

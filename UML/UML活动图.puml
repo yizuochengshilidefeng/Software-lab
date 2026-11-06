@@ -1,0 +1,42 @@
+@startuml
+title 外卖点餐与配送系统：活动图
+skinparam defaultFontName Microsoft YaHei
+skinparam shadowing false
+start
+:顾客选店选餐，加入购物车;
+:选择预设地址，确认价格与数量;
+if (地址、营业状态和库存有效？) then (是)
+  :生成待支付订单，预占库存;
+else (否)
+  :提示原因，返回修改;
+  stop
+endif
+if (顾客取消或手动检查支付超时？) then (是)
+  :释放预占，订单变为已取消;
+  stop
+endif
+if (模拟支付成功？) then (是)
+  :扣减库存并释放预占，订单变为待接单;
+else (否)
+  :保持待支付，允许重试;
+  stop
+endif
+if (商家接单？) then (是)
+  :订单变为制作中，商家制作并出餐;
+  :商家或管理员人工分配配送员;
+else (拒单或手动接单超时)
+  :订单经过退款中到已退款;
+  :全额模拟退款，补回库存一次;
+  stop
+endif
+if (配送员接受？) then (是)
+  :订单变为配送中，配送员取餐;
+  :配送员送达，订单变为已送达;
+else (否)
+  :订单仍制作中，等待人工重新分配;
+  stop
+endif
+:顾客确认，或手动检查送达满24小时;
+:订单变为已完成，统计与日志更新;
+stop
+@enduml
