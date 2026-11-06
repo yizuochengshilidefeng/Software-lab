@@ -1,0 +1,39 @@
+@startuml
+title 外卖点餐与配送系统：组件图
+skinparam defaultFontName Microsoft YaHei
+skinparam shadowing false
+top to bottom direction
+
+package "界面层" {
+  component "顾客界面（手机样式）\n首页、点餐、购物车、订单、我的" as CustomerUI
+  component "业务管理界面\n商家、配送员、管理员" as StaffUI
+}
+package "业务模块" {
+  component "商品与购物车\n店铺筛选、菜品库存、预设地址" as Catalog
+  component "订单管理\n下单、模拟支付、接单、退款" as Orders
+  component "配送管理\n人工派单、取餐送达、异常" as Delivery
+  component "查询与统计\n订单筛选、营业额、只读日志" as Query
+}
+component "数据访问\n事务与参数化查询" as Data
+database "SQLite 本地文件" as DB
+
+CustomerUI --> Catalog
+CustomerUI --> Orders
+CustomerUI --> Delivery : 本人配送进度与问题上报
+CustomerUI --> Query : 本人订单
+StaffUI --> Catalog
+StaffUI --> Orders
+StaffUI --> Delivery
+StaffUI --> Query
+Delivery ..> Orders : 更新订单状态
+Catalog --> Data
+Orders --> Data
+Delivery --> Data
+Query --> Data
+Data --> DB
+legend bottom
+  筛店：同一可售菜品同时满足分类与单价条件。
+  业务服务检查角色、账号状态与数据归属。
+  超时处理由管理员手动检查触发。
+endlegend
+@enduml

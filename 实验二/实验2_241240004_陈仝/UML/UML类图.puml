@@ -1,0 +1,67 @@
+@startuml
+title 外卖点餐与配送系统：类图
+skinparam defaultFontName Microsoft YaHei
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+
+class "用户" as User {
+  -name : string
+  -role : 顾客/商家/配送员/管理员
+  +checkPermission()
+}
+class "店铺" as Store {
+  -name : string
+  -status : 营业/休息/停业
+}
+class "菜品" as Dish {
+  -name : string
+  -category : string
+  -price_cents : int
+  -stock : int
+  -reserved : int
+  +available() : int
+}
+class "购物车项" as CartItem {
+  -quantity : int
+}
+class "订单" as Order {
+  -id : string
+  -status : 订单状态
+  -total_cents : int
+  +transition(nextState)
+  +requestCancel()
+}
+class "订单明细" as OrderItem {
+  -name_snapshot : string
+  -unit_price_cents : int
+  -quantity : int
+}
+class "配送单" as Delivery {
+  -status : 配送状态
+  +accept()
+  +pickUp()
+  +deliver()
+}
+class "退款单" as Refund {
+  -amount_cents : int
+  +refundOnce()
+}
+class "操作日志" as AuditLog {
+  -time : datetime
+  -action : string
+}
+
+User "1" -- "0..1" Store : 商家经营
+Store "1" -- "*" Dish : 管理
+User "1" -- "*" CartItem : 顾客持有
+Dish "1" -- "*" CartItem
+User "1" -- "*" Order : 顾客提交
+Store "1" -- "*" Order : 一单一店
+Order "1" *-- "1..*" OrderItem
+Dish "1" -- "*" OrderItem : 保存下单快照
+Order "1" -- "0..1" Delivery
+User "0..1" -- "*" Delivery : 当前配送员
+Order "1" -- "0..1" Refund
+Order "0..1" -- "*" AuditLog
+User "1" -- "*" AuditLog : 操作人
+@enduml
